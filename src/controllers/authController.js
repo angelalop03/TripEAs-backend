@@ -3,12 +3,34 @@
 
 const supabase = require('../config/supabaseClient');
 
+// Escapa los comodines de ILIKE (%, _, \) para que el nombre del usuario se
+// compare como texto literal y no como patrón.
+function escaparPatronLike(texto) {
+  return texto.replace(/[%_\\]/g, (caracter) => `\\${caracter}`);
+}
+
 // POST /api/auth/registro
 async function registro(req, res) {
   const { email, password, nombre } = req.body;
 
   if (!email || !password || !nombre) {
     return res.status(400).json({ error: 'Faltan campos: email, password o nombre' });
+  }
+
+  const nombreLimpio = nombre.trim();
+
+  // Regla de negocio: no puede haber dos usuarios con el mismo nombre
+  // (comparación insensible a mayúsculas). Se comprueba ANTES de crear el
+  // usuario en Supabase Auth para no dejar una cuenta de Auth huérfana sin
+  // fila en "usuarios" si el nombre ya está en uso.
+  const { data: nombreExistente } = await supabase
+    .from('usuarios')
+    .select('id_usuario')
+    .ilike('nombre', escaparPatronLike(nombreLimpio))
+    .maybeSingle();
+
+  if (nombreExistente) {
+    return res.status(400).json({ error: 'Ese nombre de usuario ya está en uso' });
   }
 
   // 1. Crear el usuario en el sistema de Auth de Supabase
@@ -28,7 +50,7 @@ async function registro(req, res) {
     .insert([
       {
         id_usuario: authData.user.id,
-        nombre,
+        nombre: nombreLimpio,
         email,
       },
     ])

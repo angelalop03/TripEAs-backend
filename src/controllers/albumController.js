@@ -93,6 +93,7 @@ async function obtenerAlbum(req, res) {
     .from('album_fotos')
     .select(`
       id_archivo,
+      id_subido_por,
       url_multimedia,
       tipo,
       fecha_subida,

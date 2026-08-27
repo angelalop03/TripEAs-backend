@@ -6,6 +6,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
+const usuariosRoutes = require('./routes/usuariosRoutes');
 const viajesRoutes = require('./routes/viajesRoutes');
 const participantesRoutes = require('./routes/participantesRoutes');
 const gastosRoutes = require('./routes/gastosRoutes');
@@ -27,6 +28,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/viajes', viajesRoutes);
 app.use('/api/participantes', participantesRoutes);
 app.use('/api/gastos', gastosRoutes);
