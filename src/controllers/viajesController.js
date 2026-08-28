@@ -191,7 +191,7 @@ async function misViajes(req, res) {
 // POST /api/viajes/unirse
 // Un usuario se une a un viaje usando el código de invitación (RF-2 + Regla de Negocio 3)
 async function unirseAViaje(req, res) {
-  const { codigo_invitacion } = req.body;
+  const { codigo_invitacion, soy_nuevo } = req.body;
 
   const authHeader = req.headers.authorization;
   if (!authHeader) {
@@ -235,27 +235,32 @@ async function unirseAViaje(req, res) {
     });
   }
 
-  // Buscamos perfiles fantasma en este viaje (Regla de Negocio 3: fusión de identidad)
-  const { data: fantasmas } = await supabase
-    .from('participantes_viaje')
-    .select(`
-      id_usuario,
-      usuarios (id_usuario, nombre)
-    `)
-    .eq('id_viaje', viaje.id_viaje)
-    .eq('es_fantasma', true);
+  // Buscamos perfiles fantasma en este viaje (Regla de Negocio 3: fusión de
+  // identidad). Si el frontend ya nos confirmó que el usuario es nuevo
+  // (soy_nuevo, tras preguntarle y que diga que ninguno de los fantasmas es
+  // él) nos saltamos esta comprobación y lo unimos directo como miembro.
+  if (!soy_nuevo) {
+    const { data: fantasmas } = await supabase
+      .from('participantes_viaje')
+      .select(`
+        id_usuario,
+        usuarios (id_usuario, nombre)
+      `)
+      .eq('id_viaje', viaje.id_viaje)
+      .eq('es_fantasma', true);
 
-  // Si hay fantasmas, los devolvemos para que el usuario seleccione cuál es él
-  if (fantasmas && fantasmas.length > 0) {
-    return res.status(200).json({
-      message: 'Selecciona tu perfil provisional si ya fuiste añadido al viaje',
-      viaje,
-      perfiles_fantasma: fantasmas.map(f => ({
-        id_usuario: f.usuarios.id_usuario,
-        nombre: f.usuarios.nombre,
-      })),
-      accion_requerida: 'fusion_identidad',
-    });
+    // Si hay fantasmas, los devolvemos para que el usuario seleccione cuál es él
+    if (fantasmas && fantasmas.length > 0) {
+      return res.status(200).json({
+        message: 'Selecciona tu perfil provisional si ya fuiste añadido al viaje',
+        viaje,
+        perfiles_fantasma: fantasmas.map(f => ({
+          id_usuario: f.usuarios.id_usuario,
+          nombre: f.usuarios.nombre,
+        })),
+        accion_requerida: 'fusion_identidad',
+      });
+    }
   }
 
   // Si no hay fantasmas, añadimos al usuario directamente como miembro
